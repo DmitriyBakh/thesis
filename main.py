@@ -6,6 +6,7 @@ import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+from datetime import datetime
 
 # from google.colab import drive
 # drive.mount('/content/gdrive', force_remount=True)
@@ -18,7 +19,7 @@ folder_path = ''
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Hyperparameters and training setup.
-num_epochs = 1000
+num_epochs = 3000
 batch_size = 100
 learning_rate = 1e-3
 num_classes = 2
@@ -40,9 +41,6 @@ testset = torchvision.datasets.CIFAR10(root='./data', train=False,
 
 # Filter for only cats (class 3) and dogs (class 5)
 trainset.targets = torch.tensor(trainset.targets)
-# cat_dog_train_indices = (trainset.targets == 3) | (trainset.targets == 5)
-# trainset.data = trainset.data[cat_dog_train_indices]
-# trainset.targets = trainset.targets[cat_dog_train_indices]
 
 # Get indices of cat and dog samples
 cat_indices = (trainset.targets == 3).nonzero(as_tuple=True)[0]
@@ -118,12 +116,12 @@ def introduce_fake_labels(labels, prob=0.00):
 results = {'train': {}, 'test': {}}
 
 for fake_prob in fake_probs:
+    start_time_prob = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     # for num_parameters in np.logspace(start=3, stop=5, num=10):
     for num_parameters in np.linspace(1000, 70000, 12):
+        start_time_num_param = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         # hidden_size = int((num_parameters - num_classes) / (1 + input_dim + num_classes))
         hidden_size = int(num_parameters)
-#         net = Net(input_dim, hidden_size).to(device)
-#         net = DDP(NetNet(input_dim, hidden_size), device_ids=0)
         net = Net(input_dim, hidden_size)
         if torch.cuda.device_count() > 1:
             net = nn.DataParallel(net)
@@ -131,14 +129,16 @@ for fake_prob in fake_probs:
         
         net.apply(weights_init)
 
+        chk = net.state_dict()
+        torch.save(chk, folder_path + f'chk_{int(fake_prob * 10)}_{hidden_size}_untrained.pt')
+
         # Use mean squared error loss and gradient descent
         criterion = nn.MSELoss()
-        # optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9)
         optimizer = optim.SGD(net.parameters(), lr=learning_rate)
 
         # Train the network
-        for epoch in range(num_epochs):  # loop over the dataset multiple times
-        # for epoch in range(2):  # loop for the test            
+        # for epoch in range(num_epochs):  # loop over the dataset multiple times
+        for epoch in range(2):  # loop for the test            
             running_loss = 0.0
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
@@ -159,7 +159,6 @@ for fake_prob in fake_probs:
                 optimizer.step()
                 running_loss += loss.item()
 
-            # print(f'Number parameters: {num_parameters}, Epoch: {epoch}, Loss: {running_loss / len(trainloader)}')
             if int(fake_prob * 10) not in results['train']:
                 results['train'][int(fake_prob * 10)] = {}
 
@@ -168,10 +167,10 @@ for fake_prob in fake_probs:
             if running_loss / len(trainloader) < eps:
                 break
 
-        print(f'Finished training for number parameters: {hidden_size}')
+        print(f'Finished training for parameters: {hidden_size}, start: {start_time_num_param}, end: {datetime.now().strftime("%d.%m.%Y %H:%M:%S")}')
 
         # Save the model
-        chk = net.module.state_dict()
+        chk = net.state_dict()
         torch.save(chk, folder_path + f'chk_{int(fake_prob * 10)}_{hidden_size}.pt')
 
         # Test the network on the test data
@@ -193,7 +192,11 @@ for fake_prob in fake_probs:
 
                 results['test'][int(fake_prob * 10)][hidden_size] = {'loss': loss.item()}
         
-    print(f'Finished training for fake probability: {fake_prob}')
+    print(f'Finished training for fake probability: {fake_prob}, start: {start_time_prob}, end: {datetime.now().strftime("%d.%m.%Y %H:%M:%S")}')
+
+    with open(folder_path + 'results.pkl', 'wb') as fp:
+        pickle.dump(results, fp)
+        print('dictionary saved successfully to file')
 
 
 with open(folder_path + 'results.pkl', 'wb') as fp:
