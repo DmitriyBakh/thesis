@@ -4,7 +4,6 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-import matplotlib.pyplot as plt
 import pickle
 from datetime import datetime
 
@@ -13,13 +12,13 @@ from datetime import datetime
 # root_dir = "/content/gdrive/MyDrive/"
 
 # folder_path = f'{root_dir}/data/'
-folder_path = ''  
+folder_path = ''
 
 # Check for GPU availability and set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Hyperparameters and training setup.
-num_epochs = 3000
+num_epochs = 6000
 batch_size = 100
 learning_rate = 1e-3
 num_classes = 2
@@ -28,10 +27,14 @@ eps = 0.01
 fake_probs = np.arange(0, 0.6, 0.1)
 num_samples = 300
 
+# transform = transforms.Compose(
+#     [transforms.Grayscale(num_output_channels=1),
+#     transforms.ToTensor(),
+#     transforms.Normalize((0.5,), (0.5,))])
+
 transform = transforms.Compose(
     [transforms.Grayscale(num_output_channels=1),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5,), (0.5,))])
+    transforms.ToTensor()])
 
 # Load CIFAR10 dataset
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
@@ -92,8 +95,8 @@ class Net(nn.Module):
         x = x.view(-1, input_dim)
         x = torch.relu(self.fc1(x)) # ReLU applied after the first fully connected layer
         # x = torch.relu(self.fc2(x)) # ReLU applied after the second fully connected layer
-        x = self.fc2(x)
-        # x = torch.sigmoid(self.fc2(x))  # Apply sigmoid to the output
+        # x = self.fc2(x)
+        x = torch.sigmoid(self.fc2(x))  # Apply sigmoid to the output
         
         return x
 
@@ -102,6 +105,7 @@ class Net(nn.Module):
 def weights_init(m):
     if isinstance(m, nn.Linear):
         nn.init.normal_(m.weight, mean=0, std=0.01)
+        # nn.init.normal_(m.weight)
         nn.init.zeros_(m.bias)
 
 # Function to introduce fake labels
@@ -118,7 +122,8 @@ results = {'train': {}, 'test': {}}
 for fake_prob in fake_probs:
     start_time_prob = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     # for num_parameters in np.logspace(start=3, stop=5, num=10):
-    for num_parameters in np.linspace(1000, 70000, 12):
+    # for num_parameters in np.linspace(1000, 70000, 12):
+    for num_parameters in np.linspace(1000, 45000, 11):
         start_time_num_param = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         # hidden_size = int((num_parameters - num_classes) / (1 + input_dim + num_classes))
         hidden_size = int(num_parameters)
@@ -134,11 +139,11 @@ for fake_prob in fake_probs:
 
         # Use mean squared error loss and gradient descent
         criterion = nn.MSELoss()
-        optimizer = optim.SGD(net.parameters(), lr=learning_rate)
+        optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.95)
 
         # Train the network
-        # for epoch in range(num_epochs):  # loop over the dataset multiple times
-        for epoch in range(2):  # loop for the test            
+        for epoch in range(num_epochs):  # loop over the dataset multiple times
+        # for epoch in range(2):  # loop for the test            
             running_loss = 0.0
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
@@ -168,6 +173,10 @@ for fake_prob in fake_probs:
                 break
 
         print(f'Finished training for parameters: {hidden_size}, start: {start_time_num_param}, end: {datetime.now().strftime("%d.%m.%Y %H:%M:%S")}')
+
+        with open(folder_path + 'results.pkl', 'wb') as fp:
+            pickle.dump(results, fp)
+            print('dictionary saved successfully to file')
 
         # Save the model
         chk = net.state_dict()
