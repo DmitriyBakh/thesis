@@ -3,6 +3,7 @@ import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.optim as optim
+# import torch.optim.lr_scheduler as lr_scheduler
 import numpy as np
 import pickle
 from datetime import datetime
@@ -29,18 +30,25 @@ num_samples = 300
 
 # transform = transforms.Compose(
 #     [transforms.Grayscale(num_output_channels=1),
-#     transforms.ToTensor(),
-#     transforms.Normalize((0.5,), (0.5,))])
+#     transforms.ToTensor()])
 
-transform = transforms.Compose(
-    [transforms.Grayscale(num_output_channels=1),
-    transforms.ToTensor()])
+# transform = transforms.Compose(
+#     [transforms.Grayscale(num_output_channels=1),
+#     transforms.ToTensor(),
+#     transforms.Normalize((0.4553,), (0.2389,))])
 
 # Load CIFAR10 dataset
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                        download=True, transform=transform)
+                                        download=True, transform=transforms.Compose(
+                                            [transforms.Grayscale(num_output_channels=1),
+                                            transforms.ToTensor(),
+                                            transforms.Normalize((0.4553,), (0.2389,))]))
+
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                    download=True, transform=transform)
+                                    download=True, transform=transforms.Compose(
+                                        [transforms.Grayscale(num_output_channels=1),
+                                        transforms.ToTensor(),
+                                        transforms.Normalize((0.4774,), (0.2377,))]))
 
 # Filter for only cats (class 3) and dogs (class 5)
 trainset.targets = torch.tensor(trainset.targets)
@@ -140,6 +148,7 @@ for fake_prob in fake_probs:
         # Use mean squared error loss and gradient descent
         criterion = nn.MSELoss()
         optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.95)
+        # scheduler = lr_scheduler.LinearLR(optimizer, start_factor=0.01, end_factor=learning_rate, total_iters=num_epochs-1000)
 
         # Train the network
         for epoch in range(num_epochs):  # loop over the dataset multiple times
@@ -163,6 +172,8 @@ for fake_prob in fake_probs:
                 loss.backward()
                 optimizer.step()
                 running_loss += loss.item()
+
+            # scheduler.step()
 
             if int(fake_prob * 10) not in results['train']:
                 results['train'][int(fake_prob * 10)] = {}
