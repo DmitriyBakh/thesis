@@ -25,18 +25,20 @@ trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                        download=True, transform=transform)
 
-# Choose 5 random classes and assign them label 1, the rest label 0
-chosen_classes = np.random.choice(10, 5, replace=False)
+# # Choose 5 random classes and assign them label 1, the rest label 0 TODO: DELETE
+# chosen_classes = np.random.choice(10, 5, replace=False)
 
-def relabel_dataset(dataset, chosen_classes):
+def relabel_dataset(dataset, chosen_classes, samples_per_class):
+    new_dataset = []
+    class_counts = {0: 0, 1: 0}
+    
     for i in range(len(dataset)):
-        if dataset[i][1] in chosen_classes:
-            dataset[i] = (dataset[i][0], 1)
-        else:
-            dataset[i] = (dataset[i][0], 0)
-
-relabel_dataset(trainset)
-relabel_dataset(testset)
+        label = 1 if dataset[i][1] in chosen_classes else 0
+        if class_counts[label] < samples_per_class:
+            new_dataset.append((dataset[i][0], label))
+            class_counts[label] += 1
+            
+    return new_dataset
 
 
 class Net(nn.Module):
@@ -95,20 +97,40 @@ def test(net, testloader):
         100 * correct / total))
 
 
+def balance_dataset(dataset, number_of_samples):
+    class_counts = [0]*10  # Count for each of the 10 classes
+    samples_per_class = number_of_samples // 10  # Equal distribution among classes
+    new_dataset = []
+
+    for image, label in dataset:
+        if class_counts[label] < samples_per_class:
+            new_dataset.append((image, label))
+            class_counts[label] += 1
+
+    return new_dataset
+
 
 criterion = nn.MSELoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=4,
-                                          shuffle=True, num_workers=2)
-testloader = torch.utils.data.DataLoader(testset, batch_size=4,
-                                         shuffle=False, num_workers=2)
+# trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, #TODO: DELETE
+#                                           shuffle=True, num_workers=2)
+# testloader = torch.utils.data.DataLoader(testset, batch_size=4,
+#                                          shuffle=False, num_workers=2)
+
+number_of_samples = 5000  # for example
 
 for _ in range(20):  # 20 experiments
+    # Balance the dataset
+    balanced_trainset = balance_dataset(trainset, number_of_samples)
+
     # Reassign labels for each experiment
     chosen_classes = np.random.choice(10, 5, replace=False)
-    relabel_dataset(trainset, chosen_classes)
+    relabel_dataset(balanced_trainset, chosen_classes)
     relabel_dataset(testset, chosen_classes)
-    
+
+    trainloader = torch.utils.data.DataLoader(balanced_trainset, batch_size=4, shuffle=True, num_workers=2)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=4, shuffle=False, num_workers=2)
+
     train(net, trainloader, criterion, optimizer)
     test(net, testloader)

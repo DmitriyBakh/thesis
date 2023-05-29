@@ -19,14 +19,7 @@ plt.title("Train")
 plt.xlabel("Number of the parameters")
 plt.ylabel("Iterations")
 
-# params_num = list(results['train'][0].keys())
 X = list(results['train'][0].keys())
-
-# for param_num in params_num:
-#     Y = []
-#     for k, v in results['train'].items():
-#         Y.append(v[param_num]['epoch'])
-#     plt.plot(X, Y, label=f'Fake probability: {k*10}')    
 
 for k, v in results['train'].items():
     Y = []
