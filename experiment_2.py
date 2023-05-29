@@ -9,24 +9,8 @@ from datetime import datetime
 
 import torch.nn.functional as F
 
-# Set seed for reproducibility
-torch.manual_seed(0)
-np.random.seed(0)
+from model import Net, weights_init
 
-# Define a transform to convert images to grayscale and to tensors
-transform = transforms.Compose([
-    transforms.Grayscale(num_output_channels=1),
-    transforms.ToTensor(),
-])
-
-# Load the CIFAR-10 train and test datasets
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                        download=True, transform=transform)
-testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                       download=True, transform=transform)
-
-# # Choose 5 random classes and assign them label 1, the rest label 0 TODO: DELETE
-# chosen_classes = np.random.choice(10, 5, replace=False)
 
 def relabel_dataset(dataset, chosen_classes, samples_per_class):
     new_dataset = []
@@ -39,23 +23,6 @@ def relabel_dataset(dataset, chosen_classes, samples_per_class):
             class_counts[label] += 1
             
     return new_dataset
-
-
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.fc1 = nn.Linear(32 * 32, 512)  # CIFAR-10 images are 32x32 pixels
-        self.fc2 = nn.Linear(512, 2)  # binary classification
-
-    def forward(self, x):
-        x = x.view(-1, 32 * 32)  # flatten image input
-        x = F.relu(self.fc1(x))  # hidden layer with ReLU activation
-        x = self.fc2(x)  # output layer
-        return x
-
-# Instantiate the network
-net = Net()
-
 
 
 def train(net, trainloader, criterion, optimizer):
@@ -110,15 +77,28 @@ def balance_dataset(dataset, number_of_samples):
     return new_dataset
 
 
+# Set seed for reproducibility
+torch.manual_seed(0)
+np.random.seed(0)
+
+# Define a transform to convert images to grayscale and to tensors
+transform = transforms.Compose([
+    transforms.Grayscale(num_output_channels=1),
+    transforms.ToTensor(),
+])
+
+# Load the CIFAR-10 train and test datasets
+trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
+                                        download=True, transform=transform)
+testset = torchvision.datasets.CIFAR10(root='./data', train=False,
+                                       download=True, transform=transform)
+
+net = Net()
+
 criterion = nn.MSELoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-# trainloader = torch.utils.data.DataLoader(trainset, batch_size=4, #TODO: DELETE
-#                                           shuffle=True, num_workers=2)
-# testloader = torch.utils.data.DataLoader(testset, batch_size=4,
-#                                          shuffle=False, num_workers=2)
-
-number_of_samples = 5000  # for example
+number_of_samples = 5000
 
 for _ in range(20):  # 20 experiments
     # Balance the dataset
