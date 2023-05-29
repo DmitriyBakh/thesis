@@ -26,23 +26,8 @@ num_classes = 2
 input_dim = 1024
 eps = 0.01
 fake_probs = np.arange(0, 0.6, 0.1)
-num_samples = 300
+num_samples = 500
 
-# transform = transforms.Compose(
-#     [transforms.Grayscale(num_output_channels=1),
-#     transforms.ToTensor()])
-
-# transform = transforms.Compose(
-#     [transforms.Grayscale(num_output_channels=1),
-#     transforms.ToTensor(),
-#     transforms.Normalize((0.4553,), (0.2389,))])
-
-# Load CIFAR10 dataset
-# trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-#                                         download=True, transform=transforms.Compose(
-#                                             [transforms.Grayscale(num_output_channels=1),
-#                                             transforms.ToTensor(),
-#                                             transforms.Normalize((0.4553,), (0.2389,))]))
 
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                     download=True, transform=transforms.Compose(
@@ -50,33 +35,7 @@ testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                         transforms.ToTensor(),
                                         transforms.Normalize((0.4774,), (0.2377,))]))
 
-# # Filter for only cats (class 3) and dogs (class 5)
-# trainset.targets = torch.tensor(trainset.targets)
-
-# # Get indices of cat and dog samples
-# cat_indices = (trainset.targets == 3).nonzero(as_tuple=True)[0]
-# dog_indices = (trainset.targets == 5).nonzero(as_tuple=True)[0]
-
-# # Check if there are enough samples, if not, use all samples
-# num_cat_samples = min(len(cat_indices), num_samples // 2)
-# num_dog_samples = min(len(dog_indices), num_samples // 2)
-
-# # Randomly select num_samples/2 from each class
-# cat_indices = cat_indices[torch.randperm(len(cat_indices))[:num_cat_samples]]
-# dog_indices = dog_indices[torch.randperm(len(dog_indices))[:num_dog_samples]]
-
-# # Combine the indices and use these to create your balanced training set
-# indices = torch.cat((cat_indices, dog_indices))
-
-# # Shuffle the combined indices
-# indices = indices[torch.randperm(len(indices))]
-
-# trainset.data = trainset.data[indices]
-# trainset.targets = trainset.targets[indices]
-
-# # Set labels for training data (0 for cats, 1 for dogs)
-# trainset.targets = (trainset.targets == 5).long()
-
+# Filter for only cats (class 3) and dogs (class 5)
 testset.targets = torch.tensor(testset.targets)
 cat_dog_test_indices = (testset.targets == 3) | (testset.targets == 5)
 testset.data = testset.data[cat_dog_test_indices]
@@ -85,8 +44,6 @@ testset.targets = testset.targets[cat_dog_test_indices] # 0 for cats, 1 for dogs
 # Set labels for testing data (0 for cats, 1 for dogs)
 testset.targets = (testset.targets == 5).long()
 
-# trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-#                                         shuffle=True, num_workers=2)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                         shuffle=False, num_workers=2)
 
@@ -97,6 +54,7 @@ def introduce_fake_labels(labels, prob=0.00):
     for idx in fake_indices:
         labels[idx] = 1 - labels[idx]  # flip the label
     return labels
+
 
 def make_training_dataset(fake_prob):
     trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
@@ -161,8 +119,8 @@ class Net(nn.Module):
         x = x.view(-1, input_dim)
         x = torch.relu(self.fc1(x)) # ReLU applied after the first fully connected layer
         # x = torch.relu(self.fc2(x)) # ReLU applied after the second fully connected layer
-        # x = self.fc2(x)
-        x = torch.sigmoid(self.fc2(x))  # Apply sigmoid to the output
+        x = self.fc2(x)
+        # x = torch.sigmoid(self.fc2(x))  # Apply sigmoid to the output
         
         return x
 
@@ -174,7 +132,7 @@ for fake_prob in fake_probs:
     # for num_parameters in np.logspace(start=3, stop=5, num=10):
     # for num_parameters in np.linspace(1000, 70000, 12):
     trainloader = make_training_dataset(fake_prob)
-    for num_parameters in np.linspace(1000, 45000, 11):
+    for num_parameters in np.linspace(1000, 150000, 20):
         start_time_num_param = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         # hidden_size = int((num_parameters - num_classes) / (1 + input_dim + num_classes))
         hidden_size = int(num_parameters)
@@ -202,9 +160,6 @@ for fake_prob in fake_probs:
                 inputs, labels = data[0].to(device), data[1].to(device)
                 labels = labels.float()
                 labels = labels.view(-1, 1)
-
-                # # introduce fake labels
-                # introduce_fake_labels(labels, prob=fake_prob)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -269,4 +224,4 @@ with open(folder_path + 'results.pkl', 'wb') as fp:
 
 with open(folder_path + 'results.pkl', 'rb') as fp:
     results = pickle.load(fp)
-    print(results)
+    # print(results)
