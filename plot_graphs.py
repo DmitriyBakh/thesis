@@ -16,17 +16,23 @@ plt.show()
 
 
 plt.title("Train")
-plt.xlabel("Fake probability")
-plt.ylabel("Loss")
+plt.xlabel("Number of the parameters")
+plt.ylabel("Iterations")
 
-params_num = list(results['train'][0].keys())
-X = [x*10 for x in results['train'].keys()]
+# params_num = list(results['train'][0].keys())
+X = list(results['train'][0].keys())
 
-for param_num in params_num:
+# for param_num in params_num:
+#     Y = []
+#     for k, v in results['train'].items():
+#         Y.append(v[param_num]['epoch'])
+#     plt.plot(X, Y, label=f'Fake probability: {k*10}')    
+
+for k, v in results['train'].items():
     Y = []
-    for k, v in results['train'].items():
-        Y.append(v[param_num]['loss'])
-    plt.plot(X, Y, label=f'Number of parameters: {param_num}')    
+    for num_param, epoch_loss in v.items():
+        Y.append(epoch_loss['epoch'])
+    plt.plot(X, Y, label=f'Fake probability: {k*10}')    
 
 plt.legend()
 plt.show()

@@ -130,9 +130,8 @@ results = {'train': {}, 'test': {}}
 for fake_prob in fake_probs:
     start_time_prob = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     # for num_parameters in np.logspace(start=3, stop=5, num=10):
-    # for num_parameters in np.linspace(1000, 70000, 12):
     trainloader = make_training_dataset(fake_prob)
-    for num_parameters in np.linspace(1000, 150000, 20):
+    for num_parameters in np.linspace(1000, 80000, 20):
         start_time_num_param = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         # hidden_size = int((num_parameters - num_classes) / (1 + input_dim + num_classes))
         hidden_size = int(num_parameters)
