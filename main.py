@@ -38,11 +38,11 @@ num_samples = 300
 #     transforms.Normalize((0.4553,), (0.2389,))])
 
 # Load CIFAR10 dataset
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                        download=True, transform=transforms.Compose(
-                                            [transforms.Grayscale(num_output_channels=1),
-                                            transforms.ToTensor(),
-                                            transforms.Normalize((0.4553,), (0.2389,))]))
+# trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
+#                                         download=True, transform=transforms.Compose(
+#                                             [transforms.Grayscale(num_output_channels=1),
+#                                             transforms.ToTensor(),
+#                                             transforms.Normalize((0.4553,), (0.2389,))]))
 
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                     download=True, transform=transforms.Compose(
@@ -50,32 +50,32 @@ testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                         transforms.ToTensor(),
                                         transforms.Normalize((0.4774,), (0.2377,))]))
 
-# Filter for only cats (class 3) and dogs (class 5)
-trainset.targets = torch.tensor(trainset.targets)
+# # Filter for only cats (class 3) and dogs (class 5)
+# trainset.targets = torch.tensor(trainset.targets)
 
-# Get indices of cat and dog samples
-cat_indices = (trainset.targets == 3).nonzero(as_tuple=True)[0]
-dog_indices = (trainset.targets == 5).nonzero(as_tuple=True)[0]
+# # Get indices of cat and dog samples
+# cat_indices = (trainset.targets == 3).nonzero(as_tuple=True)[0]
+# dog_indices = (trainset.targets == 5).nonzero(as_tuple=True)[0]
 
-# Check if there are enough samples, if not, use all samples
-num_cat_samples = min(len(cat_indices), num_samples // 2)
-num_dog_samples = min(len(dog_indices), num_samples // 2)
+# # Check if there are enough samples, if not, use all samples
+# num_cat_samples = min(len(cat_indices), num_samples // 2)
+# num_dog_samples = min(len(dog_indices), num_samples // 2)
 
-# Randomly select num_samples/2 from each class
-cat_indices = cat_indices[torch.randperm(len(cat_indices))[:num_cat_samples]]
-dog_indices = dog_indices[torch.randperm(len(dog_indices))[:num_dog_samples]]
+# # Randomly select num_samples/2 from each class
+# cat_indices = cat_indices[torch.randperm(len(cat_indices))[:num_cat_samples]]
+# dog_indices = dog_indices[torch.randperm(len(dog_indices))[:num_dog_samples]]
 
-# Combine the indices and use these to create your balanced training set
-indices = torch.cat((cat_indices, dog_indices))
+# # Combine the indices and use these to create your balanced training set
+# indices = torch.cat((cat_indices, dog_indices))
 
-# Shuffle the combined indices
-indices = indices[torch.randperm(len(indices))]
+# # Shuffle the combined indices
+# indices = indices[torch.randperm(len(indices))]
 
-trainset.data = trainset.data[indices]
-trainset.targets = trainset.targets[indices]
+# trainset.data = trainset.data[indices]
+# trainset.targets = trainset.targets[indices]
 
-# Set labels for training data (0 for cats, 1 for dogs)
-trainset.targets = (trainset.targets == 5).long()
+# # Set labels for training data (0 for cats, 1 for dogs)
+# trainset.targets = (trainset.targets == 5).long()
 
 testset.targets = torch.tensor(testset.targets)
 cat_dog_test_indices = (testset.targets == 3) | (testset.targets == 5)
@@ -85,10 +85,68 @@ testset.targets = testset.targets[cat_dog_test_indices] # 0 for cats, 1 for dogs
 # Set labels for testing data (0 for cats, 1 for dogs)
 testset.targets = (testset.targets == 5).long()
 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                        shuffle=True, num_workers=2)
+# trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+#                                         shuffle=True, num_workers=2)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                         shuffle=False, num_workers=2)
+
+# Function to introduce fake labels
+def introduce_fake_labels(labels, prob=0.00):
+    num_fake = int(prob * len(labels))
+    fake_indices = np.random.choice(len(labels), num_fake, replace=False)
+    for idx in fake_indices:
+        labels[idx] = 1 - labels[idx]  # flip the label
+    return labels
+
+def make_training_dataset(fake_prob):
+    trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
+                                            download=True, transform=transforms.Compose(
+                                                [transforms.Grayscale(num_output_channels=1),
+                                                transforms.ToTensor(),
+                                                transforms.Normalize((0.4553,), (0.2389,))]))
+
+    # Filter for only cats (class 3) and dogs (class 5)
+    trainset.targets = torch.tensor(trainset.targets)
+
+    # Get indices of cat and dog samples
+    cat_indices = (trainset.targets == 3).nonzero(as_tuple=True)[0]
+    dog_indices = (trainset.targets == 5).nonzero(as_tuple=True)[0]
+
+    # Check if there are enough samples, if not, use all samples
+    num_cat_samples = min(len(cat_indices), num_samples // 2)
+    num_dog_samples = min(len(dog_indices), num_samples // 2)
+
+    # Randomly select num_samples/2 from each class
+    cat_indices = cat_indices[torch.randperm(len(cat_indices))[:num_cat_samples]]
+    dog_indices = dog_indices[torch.randperm(len(dog_indices))[:num_dog_samples]]
+
+    # Combine the indices and use these to create your balanced training set
+    indices = torch.cat((cat_indices, dog_indices))
+
+    # Shuffle the combined indices
+    indices = indices[torch.randperm(len(indices))]
+
+    trainset.data = trainset.data[indices]
+    trainset.targets = trainset.targets[indices]
+
+    # Set labels for training data (0 for cats, 1 for dogs)
+    trainset.targets = (trainset.targets == 5).long()
+
+    # Introduce fake labels
+    trainset.targets = introduce_fake_labels(trainset.targets, fake_prob)
+
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
+                                            shuffle=True, num_workers=2)
+    
+    return trainloader
+
+
+# Initialize weights with Gaussian distribution
+def weights_init(m):
+    if isinstance(m, nn.Linear):
+        nn.init.normal_(m.weight, mean=0, std=0.01)
+        # nn.init.normal_(m.weight)
+        nn.init.zeros_(m.bias)
 
 
 # Define a simple neural network with one hidden layer
@@ -109,28 +167,13 @@ class Net(nn.Module):
         return x
 
 
-# Initialize weights with Gaussian distribution
-def weights_init(m):
-    if isinstance(m, nn.Linear):
-        nn.init.normal_(m.weight, mean=0, std=0.01)
-        # nn.init.normal_(m.weight)
-        nn.init.zeros_(m.bias)
-
-# Function to introduce fake labels
-def introduce_fake_labels(labels, prob=0.00):
-    num_fake = int(prob * len(labels))
-    fake_indices = np.random.choice(len(labels), num_fake, replace=False)
-    for idx in fake_indices:
-        labels[idx] = 1 - labels[idx]  # flip the label
-    return labels
-
-
 results = {'train': {}, 'test': {}}
 
 for fake_prob in fake_probs:
     start_time_prob = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     # for num_parameters in np.logspace(start=3, stop=5, num=10):
     # for num_parameters in np.linspace(1000, 70000, 12):
+    trainloader = make_training_dataset(fake_prob)
     for num_parameters in np.linspace(1000, 45000, 11):
         start_time_num_param = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         # hidden_size = int((num_parameters - num_classes) / (1 + input_dim + num_classes))
@@ -160,8 +203,8 @@ for fake_prob in fake_probs:
                 labels = labels.float()
                 labels = labels.view(-1, 1)
 
-                # introduce fake labels
-                introduce_fake_labels(labels, prob=fake_prob)
+                # # introduce fake labels
+                # introduce_fake_labels(labels, prob=fake_prob)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
