@@ -50,7 +50,7 @@ plt.show()
 
 plt.title("Test Accuracy")
 plt.xlabel("Number of parameters")
-plt.ylabel("Loss")
+plt.ylabel("Accuracy, %")
 
 fake_probs = list(results['test'].keys())
 X = list(results['train'][0].keys())
@@ -58,7 +58,7 @@ X = list(results['train'][0].keys())
 for fake_prob in fake_probs:
     Y = []
     for k, v in results['test'][fake_prob].items():
-        Y.append(v['accuracy'])
+        Y.append(v['accuracy'] * 100)
     plt.plot(X, Y, label=f'Fake probability: {fake_prob * 10}')
 
 plt.legend()
