@@ -169,6 +169,7 @@ for fake_prob in fake_probs:
         # Test the network on the test data
         correct = 0
         total = 0
+        lossess = []
         with torch.no_grad():
             for data in testloader:
                 images, labels = data[0].to(device), data[1].to(device)
@@ -180,11 +181,14 @@ for fake_prob in fake_probs:
                 correct += (predicted == labels).sum().item()
 
                 loss = criterion(outputs, predicted)
-                if int(fake_prob * 10) not in results['test']:
-                    results['test'][int(fake_prob * 10)] = {}
+                lossess.append(loss.item())
+    
+        if int(fake_prob * 10) not in results['test']:
+            results['test'][int(fake_prob * 10)] = {}
 
-                results['test'][int(fake_prob * 10)][hidden_size] = {'loss': loss.item()}
-        
+        results['test'][int(fake_prob * 10)][hidden_size] = {'loss': sum(lossess) / len(lossess),
+                                                              'accuracy': correct / total}
+    
     print(f'Finished training for fake probability: {fake_prob}, start: {start_time_prob}, end: {datetime.now().strftime("%d.%m.%Y %H:%M:%S")}')
 
     with open(folder_path + 'results.pkl', 'wb') as fp:

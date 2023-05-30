@@ -2,3 +2,4 @@ data
 *tmp*
 *.pkl
 *.pt
+__pycache__
