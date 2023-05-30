@@ -9,20 +9,32 @@ def weights_init(m):
         nn.init.zeros_(m.bias)
 
 
-# Define a simple neural network with one hidden layer
 class Net(nn.Module):
-    def __init__(self, input_dim, hidden_size):
+    def __init__(self, input_dim, hidden_size, depth=2):
         super(Net, self).__init__()
+
+        # Check that depth is at least 2
+        if depth < 2:
+            raise ValueError("Depth must be at least 2")
+
         self.input_dim = input_dim
-        self.fc1 = nn.Linear(input_dim, hidden_size)  # input layer to hidden layer
-        # self.fc2 = nn.Linear(hidden_size, hidden_size)  # hidden layer #1
-        self.fc2 = nn.Linear(hidden_size, 1)  # hidden layer #2 to output layer
+
+        # Define the first layer
+        layers = []
+        layers.append(nn.Linear(input_dim, hidden_size))
+        layers.append(nn.ReLU())
+
+        # Add hidden layers
+        for _ in range(depth - 2):
+            layers.append(nn.Linear(hidden_size, hidden_size))
+            layers.append(nn.ReLU())
+
+        # Define the output layer
+        layers.append(nn.Linear(hidden_size, 1))
+
+        # Store the layers in a sequential module
+        self.module = nn.Sequential(*layers)
 
     def forward(self, x):
         x = x.view(-1, self.input_dim)
-        x = torch.relu(self.fc1(x)) # ReLU applied after the first fully connected layer
-        # x = torch.relu(self.fc2(x)) # ReLU applied after the second fully connected layer
-        x = self.fc2(x)
-        # x = torch.sigmoid(self.fc2(x))  # Apply sigmoid to the output
-        
-        return x
+        return self.module(x)

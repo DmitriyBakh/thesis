@@ -111,7 +111,7 @@ for fake_prob in fake_probs:
         start_time_num_param = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         # hidden_size = int((num_parameters - num_classes) / (1 + input_dim + num_classes))
         hidden_size = int(num_parameters)
-        net = Net(input_dim, hidden_size)
+        net = Net(input_dim, hidden_size, 4)
         if torch.cuda.device_count() > 1:
             net = nn.DataParallel(net)
         net.to(device)
