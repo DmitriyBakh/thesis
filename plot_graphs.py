@@ -31,7 +31,7 @@ plt.legend()
 plt.show()
 
 
-plt.title("Test")
+plt.title("Test Loss")
 plt.xlabel("Number of parameters")
 plt.ylabel("Loss")
 
@@ -42,6 +42,23 @@ for fake_prob in fake_probs:
     Y = []
     for k, v in results['test'][fake_prob].items():
         Y.append(v['loss'])
+    plt.plot(X, Y, label=f'Fake probability: {fake_prob * 10}')
+
+plt.legend()
+plt.show()
+
+
+plt.title("Test Accuracy")
+plt.xlabel("Number of parameters")
+plt.ylabel("Loss")
+
+fake_probs = list(results['test'].keys())
+X = list(results['train'][0].keys())
+
+for fake_prob in fake_probs:
+    Y = []
+    for k, v in results['test'][fake_prob].items():
+        Y.append(v['accuracy'])
     plt.plot(X, Y, label=f'Fake probability: {fake_prob * 10}')
 
 plt.legend()
