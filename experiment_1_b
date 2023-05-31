@@ -18,7 +18,7 @@ def filter_digits(dataset):
     indices = (dataset.targets == 0) | (dataset.targets == 1)
     dataset.data = dataset.data[indices]
     dataset.targets = dataset.targets[indices]
-    return dataset
+    return dataset, indices
 
 
 def balance_digits(dataset, num_samples):
@@ -69,7 +69,7 @@ min_params, max_params = 1000, 40000
 
 # Define a transform to normalize the data
 transform = transforms.Compose([transforms.ToTensor(),
-                                transforms.Normalize(0.1307,), (0.3081,)])
+                                transforms.Normalize((0.1307,), (0.3081,))])
 
 # Download and load the training data
 mnist_trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
@@ -78,7 +78,7 @@ mnist_trainset = torchvision.datasets.MNIST(root='./data', train=True, download=
 mnist_testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
 mnist_trainset, train_indices = filter_digits(mnist_trainset)
-mnist_trainset, train_indices = balance_digits(mnist_trainset)
+mnist_trainset, train_indices = balance_digits(mnist_trainset, num_samples)
 
 mnist_testset, test_indices = filter_digits(mnist_testset)
 
