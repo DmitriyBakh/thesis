@@ -12,34 +12,6 @@ from datetime import datetime
 
 from model import Net, weights_init
 
-# from google.colab import drive
-# drive.mount('/content/gdrive', force_remount=True)
-# root_dir = "/content/gdrive/MyDrive/"
-
-# folder_path = f'{root_dir}/data/'
-folder_path = ''
-
-# Check for GPU availability and set device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# Hyperparameters and training setup.
-num_epochs = 6000
-batch_size = 100
-learning_rate = 1e-3
-input_dim = 784
-eps = 0.01
-fake_probs = np.arange(0, 0.6, 0.1)
-num_samples = 500
-
-# Define a transform to normalize the data
-transform = transforms.Compose([transforms.ToTensor(),
-                                transforms.Normalize(0.1307,), (0.3081,)])
-
-# Download and load the training data
-mnist_trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-
-# Download and load the test data
-mnist_testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
 def filter_digits(dataset):
     # Filter the dataset to include only 0 and 1 digits
@@ -47,6 +19,7 @@ def filter_digits(dataset):
     dataset.data = dataset.data[indices]
     dataset.targets = dataset.targets[indices]
     return dataset
+
 
 def balance_digits(dataset, num_samples):
     targets_0 = (dataset.targets == 0)
@@ -64,15 +37,6 @@ def balance_digits(dataset, num_samples):
 
     return dataset, indices
 
-mnist_trainset, train_indices = filter_digits(mnist_trainset)
-mnist_trainset, train_indices = balance_digits(mnist_trainset)
-
-mnist_testset, test_indices = filter_digits(mnist_testset)
-
-# Create data loaders with random sampling
-trainloader = DataLoader(mnist_trainset, batch_size=64, sampler=SubsetRandomSampler(train_indices))
-testloader = DataLoader(mnist_testset, batch_size=64, sampler=SubsetRandomSampler(test_indices))
-
 
 # Function to introduce fake labels
 def introduce_fake_labels(labels, prob=0.00):
@@ -82,6 +46,45 @@ def introduce_fake_labels(labels, prob=0.00):
         labels[idx] = 1 - labels[idx]  # flip the label
     return labels
 
+# from google.colab import drive
+# drive.mount('/content/gdrive', force_remount=True)
+# root_dir = "/content/gdrive/MyDrive/"
+
+# folder_path = f'{root_dir}/data/'
+folder_path = ''
+
+# Check for GPU availability and set device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Hyperparameters and training setup.
+num_epochs = 6000
+batch_size = 100
+learning_rate = 1e-3
+input_dim = 784
+eps = 0.01
+fake_probs = np.arange(0, 0.6, 0.1)
+num_samples = 6000
+depth = 5
+min_params, max_params = 1000, 40000
+
+# Define a transform to normalize the data
+transform = transforms.Compose([transforms.ToTensor(),
+                                transforms.Normalize(0.1307,), (0.3081,)])
+
+# Download and load the training data
+mnist_trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+
+# Download and load the test data
+mnist_testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+
+mnist_trainset, train_indices = filter_digits(mnist_trainset)
+mnist_trainset, train_indices = balance_digits(mnist_trainset)
+
+mnist_testset, test_indices = filter_digits(mnist_testset)
+
+# Create data loaders with random sampling
+trainloader = DataLoader(mnist_trainset, batch_size=batch_size, sampler=SubsetRandomSampler(train_indices))
+testloader = DataLoader(mnist_testset, batch_size=batch_size, sampler=SubsetRandomSampler(test_indices))
 
 results = {'train': {}, 'test': {}}
 
@@ -89,11 +92,11 @@ for fake_prob in fake_probs:
     start_time_prob = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     # for num_parameters in np.logspace(start=3, stop=5, num=10):
     trainloader.targets = introduce_fake_labels(mnist_trainset.targets, fake_prob)
-    for num_parameters in np.linspace(1000, 80000, 20):
+    for num_parameters in np.linspace(min_params, max_params, 20):
         start_time_num_param = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         # hidden_size = int((num_parameters - num_classes) / (1 + input_dim + num_classes))
         hidden_size = int(num_parameters)
-        net = Net(input_dim, hidden_size, 4)
+        net = Net(input_dim, hidden_size, depth)
         if torch.cuda.device_count() > 1:
             net = nn.DataParallel(net)
         net.to(device)
