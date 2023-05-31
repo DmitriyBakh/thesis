@@ -1,6 +1,8 @@
+# MNIST dataset
 import torch
 import torchvision
 import torchvision.transforms as transforms
+from torch.utils.data import DataLoader, SubsetRandomSampler
 import torch.nn as nn
 import torch.optim as optim
 # import torch.optim.lr_scheduler as lr_scheduler
@@ -24,30 +26,53 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 num_epochs = 6000
 batch_size = 100
 learning_rate = 1e-3
-num_classes = 2
-input_dim = 1024
+input_dim = 784
 eps = 0.01
 fake_probs = np.arange(0, 0.6, 0.1)
 num_samples = 500
 
+# Define a transform to normalize the data
+transform = transforms.Compose([transforms.ToTensor(),
+                                transforms.Normalize(0.1307,), (0.3081,)])
 
-testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                    download=True, transform=transforms.Compose(
-                                        [transforms.Grayscale(num_output_channels=1),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize((0.4774,), (0.2377,))]))
+# Download and load the training data
+mnist_trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
 
-# Filter for only cats (class 3) and dogs (class 5)
-testset.targets = torch.tensor(testset.targets)
-cat_dog_test_indices = (testset.targets == 3) | (testset.targets == 5)
-testset.data = testset.data[cat_dog_test_indices]
-testset.targets = testset.targets[cat_dog_test_indices] # 0 for cats, 1 for dogs in testing data
+# Download and load the test data
+mnist_testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
-# Set labels for testing data (0 for cats, 1 for dogs)
-testset.targets = (testset.targets == 5).long()
+def filter_digits(dataset):
+    # Filter the dataset to include only 0 and 1 digits
+    indices = (dataset.targets == 0) | (dataset.targets == 1)
+    dataset.data = dataset.data[indices]
+    dataset.targets = dataset.targets[indices]
+    return dataset
 
-testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
-                                        shuffle=False, num_workers=2)
+def balance_digits(dataset, num_samples):
+    targets_0 = (dataset.targets == 0)
+    targets_1 = (dataset.targets == 1)
+    count_0 = targets_0.sum().item()
+    count_1 = targets_1.sum().item()
+    count_min = min(count_0, count_1, num_samples // 2)  # Divide num_samples by 2
+
+    indices_0 = torch.where(targets_0)[0][:count_min]
+    indices_1 = torch.where(targets_1)[0][:count_min]
+    indices = torch.cat((indices_0, indices_1))
+
+    dataset.data = dataset.data[indices]
+    dataset.targets = dataset.targets[indices]
+
+    return dataset, indices
+
+mnist_trainset, train_indices = filter_digits(mnist_trainset)
+mnist_trainset, train_indices = balance_digits(mnist_trainset)
+
+mnist_testset, test_indices = filter_digits(mnist_testset)
+
+# Create data loaders with random sampling
+trainloader = DataLoader(mnist_trainset, batch_size=64, sampler=SubsetRandomSampler(train_indices))
+testloader = DataLoader(mnist_testset, batch_size=64, sampler=SubsetRandomSampler(test_indices))
+
 
 # Function to introduce fake labels
 def introduce_fake_labels(labels, prob=0.00):
@@ -58,55 +83,12 @@ def introduce_fake_labels(labels, prob=0.00):
     return labels
 
 
-def make_training_dataset(fake_prob):
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                            download=True, transform=transforms.Compose(
-                                                [transforms.Grayscale(num_output_channels=1),
-                                                transforms.ToTensor(),
-                                                transforms.Normalize((0.4553,), (0.2389,))]))
-
-    # Filter for only cats (class 3) and dogs (class 5)
-    trainset.targets = torch.tensor(trainset.targets)
-
-    # Get indices of cat and dog samples
-    cat_indices = (trainset.targets == 3).nonzero(as_tuple=True)[0]
-    dog_indices = (trainset.targets == 5).nonzero(as_tuple=True)[0]
-
-    # Check if there are enough samples, if not, use all samples
-    num_cat_samples = min(len(cat_indices), num_samples // 2)
-    num_dog_samples = min(len(dog_indices), num_samples // 2)
-
-    # Randomly select num_samples/2 from each class
-    cat_indices = cat_indices[torch.randperm(len(cat_indices))[:num_cat_samples]]
-    dog_indices = dog_indices[torch.randperm(len(dog_indices))[:num_dog_samples]]
-
-    # Combine the indices and use these to create your balanced training set
-    indices = torch.cat((cat_indices, dog_indices))
-
-    # Shuffle the combined indices
-    indices = indices[torch.randperm(len(indices))]
-
-    trainset.data = trainset.data[indices]
-    trainset.targets = trainset.targets[indices]
-
-    # Set labels for training data (0 for cats, 1 for dogs)
-    trainset.targets = (trainset.targets == 5).long()
-
-    # Introduce fake labels
-    trainset.targets = introduce_fake_labels(trainset.targets, fake_prob)
-
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                            shuffle=True, num_workers=2)
-    
-    return trainloader
-
-
 results = {'train': {}, 'test': {}}
 
 for fake_prob in fake_probs:
     start_time_prob = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     # for num_parameters in np.logspace(start=3, stop=5, num=10):
-    trainloader = make_training_dataset(fake_prob)
+    trainloader.targets = introduce_fake_labels(mnist_trainset.targets, fake_prob)
     for num_parameters in np.linspace(1000, 80000, 20):
         start_time_num_param = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         # hidden_size = int((num_parameters - num_classes) / (1 + input_dim + num_classes))
@@ -158,10 +140,6 @@ for fake_prob in fake_probs:
 
         print(f'Finished training for parameters: {hidden_size}, start: {start_time_num_param}, end: {datetime.now().strftime("%d.%m.%Y %H:%M:%S")}')
 
-        with open(folder_path + 'results.pkl', 'wb') as fp:
-            pickle.dump(results, fp)
-            print('dictionary saved successfully to file')
-
         # Save the model
         chk = net.state_dict()
         torch.save(chk, folder_path + f'chk_{int(fake_prob * 10)}_{hidden_size}.pt')
@@ -188,6 +166,9 @@ for fake_prob in fake_probs:
 
         results['test'][int(fake_prob * 10)][hidden_size] = {'loss': sum(lossess) / len(lossess),
                                                               'accuracy': correct / total}
+        with open(folder_path + 'results.pkl', 'wb') as fp:
+            pickle.dump(results, fp)
+            print('dictionary saved successfully to file')
     
     print(f'Finished training for fake probability: {fake_prob}, start: {start_time_prob}, end: {datetime.now().strftime("%d.%m.%Y %H:%M:%S")}')
 
