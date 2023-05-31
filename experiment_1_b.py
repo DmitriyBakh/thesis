@@ -26,7 +26,7 @@ def balance_digits(dataset, num_samples):
     targets_1 = (dataset.targets == 1)
     count_0 = targets_0.sum().item()
     count_1 = targets_1.sum().item()
-    count_min = min(count_0, count_1, num_samples // 2)  # Divide num_samples by 2
+    count_min = min(count_0, count_1, num_samples // 2)
 
     indices_0 = torch.where(targets_0)[0][:count_min]
     indices_1 = torch.where(targets_1)[0][:count_min]
@@ -45,6 +45,26 @@ def introduce_fake_labels(labels, prob=0.00):
     for idx in fake_indices:
         labels[idx] = 1 - labels[idx]  # flip the label
     return labels
+
+
+def make_training_dataset(num_samples, batch_size, fake_prob):
+    # Download and load the training data
+    mnist_trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+    
+    mnist_trainset, _ = filter_digits(mnist_trainset)
+    mnist_trainset, _ = balance_digits(mnist_trainset, num_samples)
+
+    # Introduce fake labels into the training set
+    mnist_trainset.targets = introduce_fake_labels(mnist_trainset.targets, prob=fake_prob)
+
+    # Create new indices for the SubsetRandomSampler
+    indices = torch.randperm(len(mnist_trainset))
+
+    # Create data loader with random sampling
+    train_loader = DataLoader(mnist_trainset, batch_size=batch_size, sampler=SubsetRandomSampler(indices))
+
+    return train_loader
+
 
 # from google.colab import drive
 # drive.mount('/content/gdrive', force_remount=True)
@@ -83,15 +103,13 @@ mnist_trainset, train_indices = balance_digits(mnist_trainset, num_samples)
 mnist_testset, test_indices = filter_digits(mnist_testset)
 
 # Create data loaders with random sampling
-trainloader = DataLoader(mnist_trainset, batch_size=batch_size, sampler=SubsetRandomSampler(train_indices))
 testloader = DataLoader(mnist_testset, batch_size=batch_size, sampler=SubsetRandomSampler(test_indices))
 
 results = {'train': {}, 'test': {}}
 
 for fake_prob in fake_probs:
     start_time_prob = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-    # for num_parameters in np.logspace(start=3, stop=5, num=10):
-    trainloader.targets = introduce_fake_labels(mnist_trainset.targets, fake_prob)
+    trainloader = make_training_dataset(num_samples, batch_size, fake_prob)
     for num_parameters in np.linspace(min_params, max_params, 20):
         start_time_num_param = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         # hidden_size = int((num_parameters - num_classes) / (1 + input_dim + num_classes))
@@ -115,7 +133,7 @@ for fake_prob in fake_probs:
         for epoch in range(num_epochs):  # loop over the dataset multiple times
         # for epoch in range(2):  # loop for the test            
             running_loss = 0.0
-            for i, data in enumerate(trainloader, 0):
+            for i, data in enumerate(trainloader):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data[0].to(device), data[1].to(device)
                 labels = labels.float()
