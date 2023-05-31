@@ -161,6 +161,29 @@ for fake_prob in fake_probs:
         chk = net.state_dict()
         torch.save(chk, folder_path + f'chk_{int(fake_prob * 10)}_{hidden_size}.pt')
 
+        # Compute the loss function on the entire dataset
+        total_loss = 0.0
+        for data in trainloader:
+            inputs, labels = data[0].to(device), data[1].to(device)
+            labels = labels.float()
+            labels = labels.view(-1, 1)
+            outputs = net(inputs)
+            loss = criterion(outputs, labels)
+            total_loss += loss.item()
+        total_loss /= len(trainloader)
+        results['train'][int(fake_prob * 10)][hidden_size]['total_loss'] = total_loss
+
+        # Compute the gradients of the loss function
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        # Print the gradients for each parameter
+        for name, param in net.named_parameters():
+            if param.requires_grad:
+                print(f'Gradient of {name}: {param.grad}')
+
+
         # Test the network on the test data
         correct = 0
         total = 0
