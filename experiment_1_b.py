@@ -12,6 +12,9 @@ from datetime import datetime
 
 from model import Net, weights_init
 
+# Define a transform to normalize the data
+transform = transforms.Compose([transforms.ToTensor(),
+                                transforms.Normalize((0.1307,), (0.3081,))])
 
 def filter_digits(dataset):
     # Filter the dataset to include only 0 and 1 digits
@@ -80,37 +83,28 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 num_epochs = 6000
 batch_size = 100
 learning_rate = 1e-3
+learning_rate2 = 0.0001
 input_dim = 784
 eps = 0.01
 fake_probs = np.arange(0, 0.6, 0.1)
 num_samples = 6000
 depth = 5
-min_params, max_params = 1000, 40000
-
-# Define a transform to normalize the data
-transform = transforms.Compose([transforms.ToTensor(),
-                                transforms.Normalize((0.1307,), (0.3081,))])
-
-# Download and load the training data
-mnist_trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+min_params, max_params, num_params = 1000, 40000, 15
 
 # Download and load the test data
 mnist_testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
-mnist_trainset, train_indices = filter_digits(mnist_trainset)
-mnist_trainset, train_indices = balance_digits(mnist_trainset, num_samples)
-
-mnist_testset, test_indices = filter_digits(mnist_testset)
+mnist_testset, _ = filter_digits(mnist_testset)
 
 # Create data loaders with random sampling
-testloader = DataLoader(mnist_testset, batch_size=batch_size, sampler=SubsetRandomSampler(test_indices))
+testloader = DataLoader(mnist_testset, batch_size=batch_size, shuffle=True)
 
 results = {'train': {}, 'test': {}}
 
 for fake_prob in fake_probs:
     start_time_prob = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     trainloader = make_training_dataset(num_samples, batch_size, fake_prob)
-    for num_parameters in np.linspace(min_params, max_params, 20):
+    for num_parameters in np.linspace(min_params, max_params, num_params):
         start_time_num_param = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         # hidden_size = int((num_parameters - num_classes) / (1 + input_dim + num_classes))
         hidden_size = int(num_parameters)
@@ -126,7 +120,9 @@ for fake_prob in fake_probs:
 
         # Use mean squared error loss and gradient descent
         criterion = nn.MSELoss()
-        optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.95)
+        optimizer = optim.SGD(net.parameters(), 
+                            lr=learning_rate if num_parameters < 25000 else learning_rate2,
+                            momentum=0.95)
         # scheduler = lr_scheduler.LinearLR(optimizer, start_factor=0.01, end_factor=learning_rate, total_iters=num_epochs-1000)
 
         # Train the network
