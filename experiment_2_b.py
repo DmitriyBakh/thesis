@@ -11,16 +11,25 @@ from datetime import datetime
 from model import Net, weights_init
 
 
-def relabel_dataset(dataset, chosen_classes, samples_per_class):
+# def relabel_dataset(dataset, chosen_classes, samples_per_class):
+#     new_dataset = []
+#     class_counts = {0: 0, 1: 0}
+    
+#     for i in range(len(dataset)):
+#         label = 1 if dataset[i][1] in chosen_classes else 0
+#         if class_counts[label] < samples_per_class:
+#             new_dataset.append((dataset[i][0], label))
+#             class_counts[label] += 1
+            
+#     return new_dataset
+
+def relabel_dataset(dataset, chosen_classes):
     new_dataset = []
-    class_counts = {0: 0, 1: 0}
     
     for i in range(len(dataset)):
         label = 1 if dataset[i][1] in chosen_classes else 0
-        if class_counts[label] < samples_per_class:
-            new_dataset.append((dataset[i][0], label))
-            class_counts[label] += 1
-            
+        new_dataset.append((dataset[i][0], label))
+
     return new_dataset
 
 
