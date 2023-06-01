@@ -1,3 +1,4 @@
+#CIFAR10 dataset
 import torch
 import torchvision
 import torchvision.transforms as transforms

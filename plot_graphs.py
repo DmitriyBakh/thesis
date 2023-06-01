@@ -2,11 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 
-with open('results.pkl', 'rb') as fp:
+with open('results_including_1-37214_v2.pkl', 'rb') as fp:
     results = pickle.load(fp)
 
 X = list(results['train'][0].keys())
-Y = [v['epoch'] for _, v in results['train'][0].items()]
+Y = [max(v) for _, v in results['train'][0].items()]
 
 plt.plot(X, Y)
 plt.title("Converges in overparameterization net with zero fakes samples")
@@ -24,7 +24,7 @@ X = list(results['train'][0].keys())
 for k, v in results['train'].items():
     Y = []
     for num_param, epoch_loss in v.items():
-        Y.append(epoch_loss['epoch'])
+        Y.append(max(epoch_loss))
     plt.plot(X, Y, label=f'Fake probability: {k*10}')    
 
 plt.legend()

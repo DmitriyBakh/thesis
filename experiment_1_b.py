@@ -89,7 +89,7 @@ eps = 0.01
 fake_probs = np.arange(0, 0.6, 0.1)
 num_samples = 6000
 depth = 5
-min_params, max_params, num_params = 1000, 40000, 15
+min_params, max_params, num_params = 1000, 37000, 14
 
 # Download and load the test data
 mnist_testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
