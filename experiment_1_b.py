@@ -150,7 +150,18 @@ for fake_prob in fake_probs:
             if int(fake_prob * 10) not in results['train']:
                 results['train'][int(fake_prob * 10)] = {}
 
-            results['train'][int(fake_prob * 10)][hidden_size] = {'epoch': epoch, 'loss': running_loss / len(trainloader)}
+            if hidden_size not in results['train'][int(fake_prob * 10)]:
+                results['train'][int(fake_prob * 10)][hidden_size] = {}
+
+            # Compute gradient norm
+            grad_norm = 0.0
+            for param in net.parameters():
+                if param.grad is not None:
+                    grad_norm += param.grad.data.norm(2).item()
+            
+            mu_boundary = grad_norm / (running_loss / len(trainloader))
+
+            results['train'][int(fake_prob * 10)][hidden_size][epoch] = {'loss': running_loss / len(trainloader), 'grad_norm': grad_norm, 'mu_boundary': mu_boundary}
 
             if running_loss / len(trainloader) < eps:
                 break
@@ -160,29 +171,6 @@ for fake_prob in fake_probs:
         # Save the model
         chk = net.state_dict()
         torch.save(chk, folder_path + f'chk_{int(fake_prob * 10)}_{hidden_size}.pt')
-
-        # Compute the loss function on the entire dataset
-        total_loss = 0.0
-        for data in trainloader:
-            inputs, labels = data[0].to(device), data[1].to(device)
-            labels = labels.float()
-            labels = labels.view(-1, 1)
-            outputs = net(inputs)
-            loss = criterion(outputs, labels)
-            total_loss += loss.item()
-        total_loss /= len(trainloader)
-        results['train'][int(fake_prob * 10)][hidden_size]['total_loss'] = total_loss
-
-        # Compute the gradients of the loss function
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        # Print the gradients for each parameter
-        for name, param in net.named_parameters():
-            if param.requires_grad:
-                print(f'Gradient of {name}: {param.grad}')
-
 
         # Test the network on the test data
         correct = 0
