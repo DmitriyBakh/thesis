@@ -3,3 +3,4 @@ data
 *.pkl
 *.pt
 __pycache__
+*.png
