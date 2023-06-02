@@ -7,6 +7,7 @@ import torch.optim as optim
 import numpy as np
 import pickle
 from datetime import datetime
+# import gc
 
 from model import Net, weights_init
 
@@ -34,11 +35,11 @@ def balance_dataset(dataset, number_of_samples):
     return new_dataset
 
 
-def train(net, trainloader, criterion, optimizer, epochs):
+def train(net, trainloader, criterion, device, optimizer, epochs=6000):
     for epoch in range(epochs):  
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
-            inputs, labels = data
+            inputs, labels = data[0].to(device), data[1].to(device)
             optimizer.zero_grad()
 
             outputs = net(inputs)
@@ -58,13 +59,13 @@ def train(net, trainloader, criterion, optimizer, epochs):
     return epoch + 1
 
 
-def test(net, testloader, criterion):
+def test(net, testloader, criterion, device):
     correct = 0
     total = 0
     test_loss = 0.0
     with torch.no_grad():
         for data in testloader:
-            images, labels = data
+            images, labels = data[0].to(device), data[1].to(device)
             outputs = net(images)
             labels = labels.float()  # convert labels to float for MSE loss
             loss = criterion(outputs, labels.view(-1, 1))
@@ -98,6 +99,8 @@ trainset = torchvision.datasets.MNIST(root='./data', train=True,
 testset = torchvision.datasets.MNIST(root='./data', train=False,
                                       download=True, transform=transform)
 
+# Check for GPU availability and set device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 hidden_size = 37000
 depth = 5
@@ -120,6 +123,9 @@ experiments_results = {
 criterion = nn.MSELoss()
 
 for i in range(20):  # 20 experiments
+    # gc.collect()
+    # torch.cuda.empty_cache()
+    start_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     # Balance the dataset
     balanced_trainset = balance_dataset(trainset, num_samples)
 
@@ -132,14 +138,26 @@ for i in range(20):  # 20 experiments
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
     net = Net(input_dim, hidden_size, depth)
+    if torch.cuda.device_count() > 1:
+        net = nn.DataParallel(net)
+    net.to(device)
+    
+    net.apply(weights_init)
+
     optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.95)
 
-    epochs = train(net, trainloader, criterion, optimizer, num_epochs)
+    epochs = train(net, trainloader, criterion, device, optimizer, num_epochs)
     experiments_results['epoch_counts'].append(epochs)
 
-    test_loss, accuracy = test(net, testloader, criterion)
+    test_loss, accuracy = test(net, testloader, criterion, device)
     experiments_results['test_losses'].append(test_loss)
     experiments_results['accuracies'].append(accuracy)
+    
+    print(f'Finished experiment {i}: {hidden_size}, start: {start_time}, end: {datetime.now().strftime("%d.%m.%Y %H:%M:%S")}')
+    
+    with open('experiment_2_b.pkl', 'wb') as f:
+        pickle.dump(experiments_results, f)
+        print('dictionary saved successfully to file')    
 
 with open('experiment_2_b.pkl', 'wb') as f:
     pickle.dump(experiments_results, f)
