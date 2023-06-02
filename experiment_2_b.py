@@ -11,18 +11,6 @@ from datetime import datetime
 from model import Net, weights_init
 
 
-# def relabel_dataset(dataset, chosen_classes, samples_per_class):
-#     new_dataset = []
-#     class_counts = {0: 0, 1: 0}
-    
-#     for i in range(len(dataset)):
-#         label = 1 if dataset[i][1] in chosen_classes else 0
-#         if class_counts[label] < samples_per_class:
-#             new_dataset.append((dataset[i][0], label))
-#             class_counts[label] += 1
-            
-#     return new_dataset
-
 def relabel_dataset(dataset, chosen_classes):
     new_dataset = []
     
@@ -46,9 +34,8 @@ def balance_dataset(dataset, number_of_samples):
     return new_dataset
 
 
-def train(net, trainloader, criterion, optimizer):
-    epochs = 0
-    while True:  
+def train(net, trainloader, criterion, optimizer, epochs):
+    for epoch in range(epochs):  
         running_loss = 0.0
         for i, data in enumerate(trainloader, 0):
             inputs, labels = data
@@ -63,13 +50,12 @@ def train(net, trainloader, criterion, optimizer):
             running_loss += loss.item()
 
         average_loss = running_loss / len(trainloader)
-        # print(f'Epoch {epochs + 1}, loss: {average_loss}')
+        # print(f'Epoch {epoch + 1}, loss: {average_loss}')
         
-        epochs += 1
-        if average_loss < 0.01 or epochs >= 6000:
+        if average_loss < 0.01 or epoch + 1 == epochs:
             break
 
-    return epochs
+    return epoch + 1
 
 
 def test(net, testloader, criterion):
@@ -84,9 +70,9 @@ def test(net, testloader, criterion):
             loss = criterion(outputs, labels.view(-1, 1))
             test_loss += loss.item()
 
-            _, predicted = torch.max(outputs.data, 1)
+            predicted = (outputs.data > 0.5).float()  # Threshold at 0.5 for binary decision
             total += labels.size(0)
-            correct += (predicted == labels.long()).sum().item()
+            correct += (predicted == labels.view(-1, 1)).sum().item()
 
     average_loss = test_loss / len(testloader)
     accuracy = 100 * correct / total
@@ -145,20 +131,13 @@ for i in range(20):  # 20 experiments
     trainloader = torch.utils.data.DataLoader(balanced_trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
 
-    # for hidden_size in range(min_params, max_params+1):
-    #     net = Net(input_dim, hidden_size, depth)
-    #     optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.95)
-
-    #     train(net, trainloader, criterion, optimizer)
-    #     test(net, testloader)
-
     net = Net(input_dim, hidden_size, depth)
     optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.95)
 
-    epochs = train(net, trainloader, criterion, optimizer)
+    epochs = train(net, trainloader, criterion, optimizer, num_epochs)
     experiments_results['epoch_counts'].append(epochs)
 
-    test_loss, accuracy = test(net, testloader)
+    test_loss, accuracy = test(net, testloader, criterion)
     experiments_results['test_losses'].append(test_loss)
     experiments_results['accuracies'].append(accuracy)
 
