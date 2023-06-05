@@ -12,6 +12,19 @@ from datetime import datetime
 from model import Net, weights_init
 
 
+def balance_dataset(dataset, number_of_samples):
+    class_counts = [0]*10  # Count for each of the 10 classes
+    samples_per_class = number_of_samples // 10  # Equal distribution among classes
+    new_dataset = []
+
+    for image, label in dataset:
+        if class_counts[label] < samples_per_class:
+            new_dataset.append((image, label))
+            class_counts[label] += 1
+
+    return new_dataset
+
+
 def relabel_dataset(dataset, chosen_classes):
     new_dataset = []
     
@@ -22,15 +35,18 @@ def relabel_dataset(dataset, chosen_classes):
     return new_dataset
 
 
-def balance_dataset(dataset, number_of_samples):
-    class_counts = [0]*10  # Count for each of the 10 classes
-    samples_per_class = number_of_samples // 10  # Equal distribution among classes
-    new_dataset = []
+def introduce_fake_labels(dataset, flip_probability):
+    num_samples = len(dataset)
+    num_flips = int(num_samples * flip_probability)
 
-    for image, label in dataset:
-        if class_counts[label] < samples_per_class:
-            new_dataset.append((image, label))
-            class_counts[label] += 1
+    # Randomly choose the indices of the samples to flip
+    flip_indices = np.random.choice(num_samples, num_flips, replace=False)
+
+    new_dataset = dataset.copy()  # Create a copy of the original dataset
+
+    for i in flip_indices:
+        image, label = new_dataset[i]
+        new_dataset[i] = (image, 1 - label)  # Flip the label
 
     return new_dataset
 
@@ -126,12 +142,15 @@ for i in range(20):  # 20 experiments
     # gc.collect()
     # torch.cuda.empty_cache()
     start_time = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    flip_probability = i * 0.03
+    
     # Balance the dataset
     balanced_trainset = balance_dataset(trainset, num_samples)
 
     # Reassign labels for each experiment
     chosen_classes = np.random.choice(10, 5, replace=False)
     balanced_trainset = relabel_dataset(balanced_trainset, chosen_classes)
+    balanced_trainset = introduce_fake_labels(balanced_trainset, flip_probability)
     testset = relabel_dataset(testset, chosen_classes)
 
     trainloader = torch.utils.data.DataLoader(balanced_trainset, batch_size=batch_size, shuffle=True, num_workers=2)

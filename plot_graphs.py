@@ -71,22 +71,41 @@ plt.show()
 
 fake_probs = list(results['train'].keys())
 num_params = list(results['train'][0].keys())
-num_params = [num_params[0], num_params[7], num_params[13]]
+num_params = [num_params[0], num_params[4], num_params[8], num_params[13]]
+learning_rate = 1e-3
 
 for prob in fake_probs:
     for num_param in num_params:
-        plt.title(f"Mu, of fake probability:{prob * 10}, parameters number: {num_param}")
-        plt.xlabel("Mu")
-        plt.ylabel("Loss")
+        plt.figure()
+        plt.title(f"$\mu$, of fake probability:{prob * 10}, parameters number: {num_param}")
+        plt.xlabel("Epochs")
+        plt.ylabel("$Loss, log_{10}$")
 
-        X, Y = [], []
-        for epoch in range(len(results['train'][prob][num_param])):
-            X.append(results['train'][prob][num_param][epoch]['mu_boundary'])
-            Y.append(results['train'][prob][num_param][epoch]['loss'])
+        X = []
+        X = list(results['train'][prob][num_param].keys())
+        Y1 = [np.log10(v['loss']) for _, v in results['train'][prob][num_param].items()]
+        # Y1 = [v['loss'] for _, v in results['train'][prob][num_param].items()]
+        # Y1 = np.array(Y1)
+        # Y1 /= np.linalg.norm(Y1)
+        # Y1 = np.log10(Y1).tolist()
         
-        plt.plot(X, Y)
+        Y2 = []
+        for epoch in range(len(results['train'][prob][num_param])):
+            max_t_boundary = results['train'][prob][num_param][0]['loss']
+            for t in range(epoch + 1):
+                max_t_boundary *= (1 - learning_rate * results['train'][prob][num_param][t]['mu_boundary'])
+            Y2.append(max_t_boundary)
+
+        # Y2 = np.array(Y2)
+        # Y2 /= np.linalg.norm(Y2)
+        # Y2 = np.log10(Y2).tolist()
+        
+        plt.plot(X, Y1, label=f'True loss')
+        plt.plot(X, Y2, label=f'Maximum boundary loss')
+        plt.legend()
         plt.savefig(f'mu_fake_prob-{prob*10}_num_params-{num_param}.png', dpi=200)
-        plt.show()
+        # plt.show()
+        plt.close()
 
 
 with open('experiment_2_b.pkl', 'rb') as fp:
