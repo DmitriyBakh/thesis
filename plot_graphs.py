@@ -84,10 +84,6 @@ for prob in fake_probs:
         X = []
         X = list(results['train'][prob][num_param].keys())
         Y1 = [np.log10(v['loss']) for _, v in results['train'][prob][num_param].items()]
-        # Y1 = [v['loss'] for _, v in results['train'][prob][num_param].items()]
-        # Y1 = np.array(Y1)
-        # Y1 /= np.linalg.norm(Y1)
-        # Y1 = np.log10(Y1).tolist()
         
         Y2 = []
         for epoch in range(len(results['train'][prob][num_param])):
@@ -96,10 +92,6 @@ for prob in fake_probs:
                 max_t_boundary *= (1 - learning_rate * results['train'][prob][num_param][t]['mu_boundary'])
             Y2.append(max_t_boundary)
 
-        # Y2 = np.array(Y2)
-        # Y2 /= np.linalg.norm(Y2)
-        # Y2 = np.log10(Y2).tolist()
-        
         plt.plot(X, Y1, label=f'True loss')
         plt.plot(X, Y2, label=f'Maximum boundary loss')
         plt.legend()
